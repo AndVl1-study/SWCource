@@ -1,0 +1,13 @@
+package ru.andvl.polytech.swcourse
+
+import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.application
+
+fun main() = application {
+    Window(
+        onCloseRequest = ::exitApplication,
+        title = "SWCource",
+    ) {
+        App()
+    }
+}
