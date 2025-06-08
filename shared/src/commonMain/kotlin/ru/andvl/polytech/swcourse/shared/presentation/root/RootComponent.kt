@@ -6,7 +6,9 @@ import com.arkivanov.decompose.router.stack.StackNavigation
 import com.arkivanov.decompose.router.stack.childStack
 import com.arkivanov.decompose.router.stack.pop
 import com.arkivanov.decompose.router.stack.push
+import com.arkivanov.decompose.router.stack.pushNew
 import com.arkivanov.decompose.value.Value
+import com.arkivanov.essenty.backhandler.BackHandlerOwner
 import kotlinx.serialization.Serializable
 import ru.andvl.polytech.swcourse.shared.data.network.ApiServiceImpl
 import ru.andvl.polytech.swcourse.shared.data.network.createHttpClient
@@ -16,7 +18,7 @@ import ru.andvl.polytech.swcourse.shared.presentation.details.DetailsComponentIm
 import ru.andvl.polytech.swcourse.shared.presentation.list.ListComponent
 import ru.andvl.polytech.swcourse.shared.presentation.list.ListComponentImpl
 
-interface RootComponent {
+interface RootComponent: BackHandlerOwner {
     val stack: Value<ChildStack<Config, Child>>
 
     sealed class Child {
@@ -60,7 +62,7 @@ class RootComponentImpl(
                     componentContext = componentContext,
                     peopleRepository = peopleRepository,
                     onPersonSelected = { personUrl ->
-                        navigation.push(RootComponent.Config.Details(personUrl))
+                        navigation.pushNew(RootComponent.Config.Details(personUrl))
                     }
                 )
             )
@@ -73,4 +75,4 @@ class RootComponentImpl(
                )
             )
         }
-} 
+}

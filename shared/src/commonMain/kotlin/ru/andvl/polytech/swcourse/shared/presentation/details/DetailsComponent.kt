@@ -3,6 +3,7 @@ package ru.andvl.polytech.swcourse.shared.presentation.details
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.operator.map
+import com.arkivanov.essenty.backhandler.BackHandlerOwner
 import com.arkivanov.mvikotlin.core.instancekeeper.getStore
 import com.arkivanov.mvikotlin.extensions.coroutines.stateFlow
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
@@ -10,7 +11,7 @@ import ru.andvl.polytech.swcourse.shared.data.model.Person
 import ru.andvl.polytech.swcourse.shared.domain.repository.PeopleRepository
 import ru.andvl.polytech.swcourse.shared.util.asValue
 
-interface DetailsComponent {
+interface DetailsComponent : BackHandlerOwner {
     val model: Value<Model>
 
     fun onBackClicked()
@@ -37,13 +38,16 @@ class DetailsComponentImpl(
         ).create()
     }
 
-    override val model: Value<DetailsComponent.Model> = store.stateFlow(lifecycle).asValue(lifecycle).map {
-        DetailsComponent.Model(
-            person = it.person,
-            isLoading = it.isLoading,
-            error = it.error
-        )
-    }
+    override val model: Value<DetailsComponent.Model> = store
+        .stateFlow(lifecycle)
+        .asValue(lifecycle)
+        .map {
+            DetailsComponent.Model(
+                person = it.person,
+                isLoading = it.isLoading,
+                error = it.error
+            )
+        }
 
     override fun onBackClicked() {
         onFinished()

@@ -19,4 +19,4 @@ fun RootContent(component: RootComponent) {
             is RootComponent.Child.Details -> DetailsContent(child.component)
         }
     }
-} 
+}

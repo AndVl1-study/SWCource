@@ -11,11 +11,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import ru.andvl.polytech.swcourse.composeApp.ui.util.BackButtonHandler
 import ru.andvl.polytech.swcourse.shared.presentation.details.DetailsComponent
 
 @Composable
 fun DetailsContent(component: DetailsComponent) {
     val model by component.model.subscribeAsState()
+    BackButtonHandler(component.backHandler, true) {
+        component.onBackClicked()
+    }
 
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         when {
