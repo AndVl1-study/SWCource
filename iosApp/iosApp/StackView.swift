@@ -22,20 +22,25 @@ struct StackView<C: AnyObject, T: AnyObject, V: View>: View {
 
     var body: some View {
         let stack = self.stack.value
-        
+        let activeChild = stack.active
+
         return NavigationView {
             VStack {
-                let child = stack.active.instance
-                self.content(child)
-                    .navigationBarTitle(self.getTitle(child), displayMode: .inline)
-                    .navigationBarItems(
-                        leading: Button(action: self.onBack) {
-                            if stack.backStack.count > 0 {
-                                Image(systemName: "chevron.left")
-                            }
-                        }
+                self.content(activeChild.instance)
+                    .id(String(describing: activeChild.configuration))
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing),
+                        removal: .move(edge: .leading))
                     )
             }
+            .navigationBarTitle(self.getTitle(activeChild.instance), displayMode: .inline)
+            .navigationBarItems(
+                leading: Button(action: { withAnimation { self.onBack() } }) {
+                    if !stack.backStack.isEmpty {
+                        Image(systemName: "chevron.left")
+                    }
+                }
+            )
         }
         .navigationViewStyle(StackNavigationViewStyle())
     }

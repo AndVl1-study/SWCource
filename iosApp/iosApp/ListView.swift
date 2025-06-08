@@ -16,19 +16,24 @@ struct ListView: View {
         let model = self.model.value
 
         return ZStack {
-            List(model.items, id: \.url) { item in
-                Text(item.name)
-                    .onTapGesture {
-                        component.onPersonClicked(person: item)
+            List {
+                ForEach(model.items, id: \.url) { item in
+                    Button(action: { withAnimation { component.onPersonClicked(person: item) } }) {
+                        Text(item.name)
+                            .padding(.horizontal)
+                            .padding(.vertical, 12)
                     }
-            }
-            .onAppear(perform: {
-                // This is a workaround to detect when the list is scrolled to the end.
-                // A better solution would be to use a custom View that wraps UIScrollView.
-                Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
-                    component.onLoadNextPageClicked()
+                    .buttonStyle(PlainButtonStyle())
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .onAppear {
+                        if item == model.items.last {
+                            component.onLoadNextPageClicked()
+                        }
+                    }
                 }
-            })
+                .listRowInsets(EdgeInsets())
+            }
 
             if model.isLoading {
                 ProgressView()
