@@ -17,11 +17,19 @@ import ru.andvl.polytech.swcourse.shared.presentation.list.ListComponent
 import ru.andvl.polytech.swcourse.shared.presentation.list.ListComponentImpl
 
 interface RootComponent {
-    val stack: Value<ChildStack<*, Child>>
+    val stack: Value<ChildStack<Config, Child>>
 
     sealed class Child {
         data class List(val component: ListComponent) : Child()
         data class Details(val component: DetailsComponent) : Child()
+    }
+
+    @Serializable
+    sealed interface Config {
+        @Serializable
+        data object List : Config
+        @Serializable
+        data class Details(val personUrl: String) : Config
     }
 }
 
@@ -29,34 +37,34 @@ class RootComponentImpl(
     componentContext: ComponentContext
 ) : RootComponent, ComponentContext by componentContext {
 
-    private val navigation = StackNavigation<Config>()
+    private val navigation = StackNavigation<RootComponent.Config>()
 
     // DI happening here. In a real app, you would use a DI framework.
     private val httpClient = createHttpClient()
     private val apiService = ApiServiceImpl(httpClient)
     private val peopleRepository = PeopleRepositoryImpl(apiService)
 
-    override val stack: Value<ChildStack<*, RootComponent.Child>> =
+    override val stack: Value<ChildStack<RootComponent.Config, RootComponent.Child>> =
         childStack(
             source = navigation,
-            serializer = Config.serializer(),
-            initialConfiguration = Config.List,
+            serializer = RootComponent.Config.serializer(),
+            initialConfiguration = RootComponent.Config.List,
             handleBackButton = true,
             childFactory = ::createChild
         )
 
-    private fun createChild(config: Config, componentContext: ComponentContext): RootComponent.Child =
+    private fun createChild(config: RootComponent.Config, componentContext: ComponentContext): RootComponent.Child =
         when (config) {
-            is Config.List -> RootComponent.Child.List(
+            is RootComponent.Config.List -> RootComponent.Child.List(
                 ListComponentImpl(
                     componentContext = componentContext,
                     peopleRepository = peopleRepository,
                     onPersonSelected = { personUrl ->
-                        navigation.push(Config.Details(personUrl))
+                        navigation.push(RootComponent.Config.Details(personUrl))
                     }
                 )
             )
-            is Config.Details -> RootComponent.Child.Details(
+            is RootComponent.Config.Details -> RootComponent.Child.Details(
                DetailsComponentImpl(
                    componentContext = componentContext,
                    personUrl = config.personUrl,
@@ -65,13 +73,4 @@ class RootComponentImpl(
                )
             )
         }
-
-
-    @Serializable
-    private sealed interface Config {
-        @Serializable
-        data object List : Config
-        @Serializable
-        data class Details(val personUrl: String) : Config
-    }
 } 

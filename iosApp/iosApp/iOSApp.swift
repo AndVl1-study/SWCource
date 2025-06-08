@@ -1,10 +1,17 @@
 import SwiftUI
+import Shared
 
 @main
 struct iOSApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
+    private let root: RootComponent
+    
+    init() {
+        self.root = RootComponentImpl(componentContext: DefaultComponentContext(lifecycle: ApplicationLifecycle()))
     }
+
+	var body: some Scene {
+		WindowGroup {
+			RootView(root)
+		}
+	}
 }

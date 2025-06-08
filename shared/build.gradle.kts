@@ -1,5 +1,7 @@
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+import org.jetbrains.kotlin.konan.target.Family
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -14,7 +16,7 @@ kotlin {
             jvmTarget.set(JvmTarget.JVM_11)
         }
     }
-    
+
     listOf(
         iosX64(),
         iosArm64(),
@@ -23,11 +25,13 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "Shared"
             isStatic = true
+            export(libs.decompose)
+            export(libs.essenty.lifecycle)
         }
     }
-    
+
     jvm()
-    
+
     sourceSets {
         commonMain.dependencies {
             // put your Multiplatform dependencies here
@@ -35,7 +39,8 @@ kotlin {
             implementation(libs.mvikotlin.main)
             implementation(libs.mvikotlin.extensions.coroutines)
 
-            implementation(libs.decompose)
+            api(libs.decompose)
+            api(libs.essenty.lifecycle)
             implementation(libs.decompose.extensions.compose)
 
             implementation(libs.ktor.client.core)
@@ -43,7 +48,7 @@ kotlin {
             implementation(libs.ktor.serialization.kotlinx.json)
 
             implementation(libs.kotlinx.coroutines.core)
-            
+
             implementation(libs.kotlinx.serialization.json)
         }
         commonTest.dependencies {
