@@ -1004,6 +1004,99 @@ struct CounterView: View {
 \end{itemize}
 
 
+\section{Описание приложения}
+
+В рамках практической части работы было разработано мультиплатформенное приложение на Kotlin Multiplatform, демонстрирующее получение, отображение и навигацию по данным, полученным из открытого API.
+
+\subsection{Функциональность}
+
+Приложение реализует базовый сценарий взаимодействия с удаленным сервером и предоставляет следующий функционал:
+
+\begin{enumerate}
+    \item Отображение списка персонажей: При запуске приложения открывается главный экран, на котором в виде списка отображаются персонажи, загруженные из Star Wars API (SWAPI). Реализована пагинация для постепенной подгрузки данных при прокрутке списка (см. рисунок \ref{fig:list_screen}).
+    \item Просмотр детальной информации: При нажатии на элемент списка происходит переход на экран с подробной информацией о выбранном персонаже (см. рисунок \ref{fig:details_screen}).
+    \item Обработка состояний: В приложении реализована обработка состояний загрузки и ошибок как для списка, так и для экрана с детальной информацией, что обеспечивает корректное отображение UI в различных сценариях.
+\end{enumerate}
+
+\subsection{Структура проекта}
+
+Проект имеет стандартную для Kotlin Multiplatform архитектуру и состоит из двух основных модулей:
+
+\begin{itemize}
+    \item \texttt{shared}: Общий модуль, содержащий бизнес-логику, логику представления, сетевой слой и доменные модели. Код в этом модуле компилируется как для Android, так и для iOS.
+    \item \texttt{iosApp}: Модуль, специфичный для платформы iOS, который содержит UI-слой, реализованный на SwiftUI, и обеспечивает интеграцию с общим кодом из модуля \texttt{shared}.
+\end{itemize}
+
+Модуль \texttt{shared} внутри разделен на три логических слоя, что соответствует принципам чистой архитектуры:
+
+\begin{itemize}
+    \item \texttt{data}: Отвечает за получение данных из сети (с помощью Ktor) и их преобразование.
+    \item \texttt{domain}: Содержит бизнес-сущности (модели) и интерфейсы репозиториев.
+    \item \texttt{presentation}: Реализует логику представления с использованием MVIKotlin и управляет навигацией с помощью Decompose.
+\end{itemize}
+
+\subsection{Используемые технологии и библиотеки}
+
+Для реализации проекта был выбран следующий стек технологий:
+
+\begin{itemize}
+    \item \textbf{Kotlin Multiplatform}: Основа для создания переиспользуемого кода между iOS и Android.
+    \item \textbf{Decompose}: Библиотека для мультиплатформенной навигации и управления жизненным циклом компонентов. Она позволила реализовать всю навигационную логику в общем модуле \texttt{shared}.
+    \item \textbf{MVIKotlin}: Реализация паттерна MVI для управления состоянием. Использовалась для создания предсказуемого и тестируемого потока данных.
+    \item \textbf{Ktor}: Асинхронный сетевой фреймворк для выполнения HTTP-запросов к API.
+    \item \textbf{Kotlinx.serialization}: Библиотека для сериализации и десериализации данных в формате JSON.
+    \item \textbf{SwiftUI}: Декларативный фреймворк для построения UI на платформе iOS.
+\end{itemize}
+
+\subsection{Пример реализации навигации}
+
+Навигация в приложении управляется с помощью \texttt{RootComponent}, который содержит \texttt{StackNavigation} из библиотеки Decompose. В нем определяются возможные экраны (\texttt{Config}) и создаются дочерние компоненты для каждого из них, как показано в листинге \ref{lst:kotlin_root_component}.
+
+\begin{listing}[H]
+\begin{minted}[frame=single,framesep=2mm,baselinestretch=1.2,fontsize=\small,linenos,breaklines]{kotlin}
+class RootComponentImpl(
+    componentContext: ComponentContext
+) : RootComponent, ComponentContext by componentContext {
+
+    private val navigation = StackNavigation<RootComponent.Config>()
+
+    override val stack: Value<ChildStack<RootComponent.Config, RootComponent.Child>> =
+        childStack(
+            source = navigation,
+            // ...
+            initialConfiguration = RootComponent.Config.List,
+            handleBackButton = true,
+            childFactory = ::createChild
+        )
+
+    private fun createChild(config: RootComponent.Config, componentContext: ComponentContext): RootComponent.Child =
+        when (config) {
+            is RootComponent.Config.List -> RootComponent.Child.List(
+                ListComponentImpl(
+                    componentContext = componentContext,
+                    // ...
+                    onPersonSelected = { personUrl ->
+                        navigation.pushNew(RootComponent.Config.Details(personUrl))
+                    }
+                )
+            )
+            is RootComponent.Config.Details -> RootComponent.Child.Details(
+               DetailsComponentImpl(
+                   componentContext = componentContext,
+                   // ...
+                   onFinished = navigation::pop
+               )
+            )
+        }
+}
+\end{minted}
+\caption{Реализация навигации с помощью Decompose}
+\label{lst:kotlin_root_component}
+\end{listing}
+
+Данный подход позволяет описать все навигационные переходы в общем коде, делая UI-слой на стороне iOS максимально "тонким" и ответственным только за отображение состояния.
+
+
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.4\textwidth]{ios_details.png}
