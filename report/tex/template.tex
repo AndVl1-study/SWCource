@@ -1003,8 +1003,7 @@ struct CounterView: View {
     \item Необходимо обучение: Разработчикам, привыкшим к традиционным паттернам, может потребоваться время для освоения MVI и Decompose.
 \end{itemize}
 
-
-\section{Описание приложения}
+\section{Детали реализации}
 
 В рамках практической части работы было разработано мультиплатформенное приложение на Kotlin Multiplatform, демонстрирующее получение, отображение и навигацию по данным, полученным из открытого API.
 
@@ -1015,8 +1014,37 @@ struct CounterView: View {
 \begin{enumerate}
     \item Отображение списка персонажей: При запуске приложения открывается главный экран, на котором в виде списка отображаются персонажи, загруженные из Star Wars API (SWAPI). Реализована пагинация для постепенной подгрузки данных при прокрутке списка (см. рисунок \ref{fig:list_screen}).
     \item Просмотр детальной информации: При нажатии на элемент списка происходит переход на экран с подробной информацией о выбранном персонаже (см. рисунок \ref{fig:details_screen}).
-    \item Обработка состояний: В приложении реализована обработка состояний загрузки и ошибок как для списка, так и для экрана с детальной информацией, что обеспечивает корректное отображение UI в различных сценариях.
+    \item Обработка состояний: В приложении реализована обработка состояний загрузки (рисунок \ref{fig:loading_screen}) и ошибок (рисунок ~\ref{fig:error_screen}) как для списка, так и для экрана с детальной информацией, что обеспечивает корректное отображение UI в различных сценариях.
 \end{enumerate}
+
+\begin{figure}[!htb]
+    \centering
+    \includegraphics[width=0.4\textwidth]{ios_list.png}
+    \caption{Экран со списком персонажей}
+    \label{fig:list_screen}
+\end{figure}
+
+
+\begin{figure}[!htb]
+    \centering
+    \includegraphics[width=0.4\textwidth]{ios_details.png}
+    \caption{Экран с подробной информацией о персонаже}
+    \label{fig:details_screen}
+\end{figure}
+
+\begin{figure}[!htb]
+    \centering
+    \includegraphics[width=0.4\textwidth]{ios_loading.png}
+    \caption{Экран в состоянии загрузки}
+    \label{fig:loading_screen}
+\end{figure}
+
+\begin{figure}[!htb]
+    \centering
+    \includegraphics[width=0.4\textwidth]{ios_error.png}
+    \caption{Экран в состоянии ошибки}
+    \label{fig:error_screen}
+\end{figure}
 
 \subsection{Структура проекта}
 
@@ -1025,6 +1053,7 @@ struct CounterView: View {
 \begin{itemize}
     \item \texttt{shared}: Общий модуль, содержащий бизнес-логику, логику представления, сетевой слой и доменные модели. Код в этом модуле компилируется как для Android, так и для iOS.
     \item \texttt{iosApp}: Модуль, специфичный для платформы iOS, который содержит UI-слой, реализованный на SwiftUI, и обеспечивает интеграцию с общим кодом из модуля \texttt{shared}.
+    \item \texttt{composeApp}: Модуль, отвечающий за пользовательский интерфейс на Jetpack Compose. Используется для приложений для платформ Android и Desktop, в данной курсовой работе не рассматривается.
 \end{itemize}
 
 Модуль \texttt{shared} внутри разделен на три логических слоя, что соответствует принципам чистой архитектуры:
@@ -1048,67 +1077,159 @@ struct CounterView: View {
     \item \textbf{SwiftUI}: Декларативный фреймворк для построения UI на платформе iOS.
 \end{itemize}
 
-\subsection{Пример реализации навигации}
+\subsection{Сетевое взаимодействие и загрузка данных}
 
-Навигация в приложении управляется с помощью \texttt{RootComponent}, который содержит \texttt{StackNavigation} из библиотеки Decompose. В нем определяются возможные экраны (\texttt{Config}) и создаются дочерние компоненты для каждого из них, как показано в листинге \ref{lst:kotlin_root_component}.
+Для выполнения сетевых запросов в общем модуле \texttt{shared} используется мультиплатформенная библиотека Ktor. Она позволяет один раз описать логику взаимодействия с API и переиспользовать ее на всех платформах. Настройка клиента Ktor происходит в общем коде, где устанавливаются базовый URL и настраивается сериализация JSON с помощью \texttt{kotlinx.serialization}, как показано в листинге \ref{lst:ktor_client}.
 
 \begin{listing}[H]
 \begin{minted}[frame=single,framesep=2mm,baselinestretch=1.2,fontsize=\small,linenos,breaklines]{kotlin}
-class RootComponentImpl(
-    componentContext: ComponentContext
-) : RootComponent, ComponentContext by componentContext {
-
-    private val navigation = StackNavigation<RootComponent.Config>()
-
-    override val stack: Value<ChildStack<RootComponent.Config, RootComponent.Child>> =
-        childStack(
-            source = navigation,
-            // ...
-            initialConfiguration = RootComponent.Config.List,
-            handleBackButton = true,
-            childFactory = ::createChild
-        )
-
-    private fun createChild(config: RootComponent.Config, componentContext: ComponentContext): RootComponent.Child =
-        when (config) {
-            is RootComponent.Config.List -> RootComponent.Child.List(
-                ListComponentImpl(
-                    componentContext = componentContext,
-                    // ...
-                    onPersonSelected = { personUrl ->
-                        navigation.pushNew(RootComponent.Config.Details(personUrl))
-                    }
-                )
-            )
-            is RootComponent.Config.Details -> RootComponent.Child.Details(
-               DetailsComponentImpl(
-                   componentContext = componentContext,
-                   // ...
-                   onFinished = navigation::pop
-               )
-            )
-        }
+// shared/data/network/HttpClient.kt
+private val httpClient = HttpClient {
+    install(ContentNegotiation) {
+        json(Json {
+            prettyPrint = true
+            isLenient = true
+            ignoreUnknownKeys = true
+        })
+    }
 }
 \end{minted}
-\caption{Реализация навигации с помощью Decompose}
-\label{lst:kotlin_root_component}
+\caption{Настройка HTTP-клиента Ktor}
+\label{lst:ktor_client}
 \end{listing}
 
-Данный подход позволяет описать все навигационные переходы в общем коде, делая UI-слой на стороне iOS максимально "тонким" и ответственным только за отображение состояния.
+Загрузка данных инкапсулирована в \texttt{Store}-компонентах (MVIKotlin), таких как \texttt{ListStore} и \texttt{DetailsStore}. Они инициируют асинхронную загрузку данных в \texttt{Bootstrapper} или \texttt{Executor}, используя корутины.
 
+\subsection{Управление состоянием и пагинация}
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.4\textwidth]{ios_details.png}
-    \caption{Экран с подробной информацией о персонаже}
-    \label{fig:details_screen}
-\end{figure}
+Управление состоянием экранов реализовано с помощью MVIKotlin. Для каждого экрана (\texttt{ListComponent}, \texttt{DetailsComponent}) создан свой \texttt{Store}, который отвечает за обработку действий пользователя (\texttt{Intent}), выполнение бизнес-логики (\texttt{Executor}) и обновление состояния (\texttt{Reducer}).
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.4\textwidth]{ios_list.png}
-    \caption{Экран со спископ персонажей}
-    \label{fig:list_screen}
-\end{figure}
+Пагинация реализована на экране списка. Когда пользователь доходит до последнего видимого элемента, UI-слой на стороне iOS отправляет в \texttt{ListComponent} намерение \texttt{onLoadNextPageClicked}, как показано в листинге \ref{lst:swift_pagination_trigger}.
+
+\begin{listing}[H]
+\begin{minted}[frame=single,framesep=2mm,baselinestretch=1.2,fontsize=\small,linenos,breaklines]{swift}
+// iosApp/ListView.swift
+List {
+    ForEach(model.items, id: \.url) { item in
+        // ...
+        .onAppear {
+            if item == model.items.last {
+                component.onLoadNextPageClicked()
+            }
+        }
+    }
+}
+\end{minted}
+\caption{Инициирование пагинации в SwiftUI}
+\label{lst:swift_pagination_trigger}
+\end{listing}
+
+Это намерение обрабатывается в \texttt{ListStore}, который, в свою очередь, запускает загрузку следующей страницы данных, как показано в листинге \ref{lst:list_store_pagination}.
+
+\begin{listing}[H]
+\begin{minted}[frame=single,framesep=2mm,baselinestretch=1.2,fontsize=\small,linenos,breaklines]{kotlin}
+// shared/presentation/list/ListStore.kt
+private inner class ExecutorImpl : CoroutineExecutor<ListStore.Intent, Action, ListStore.State, Msg, Nothing>() {
+    private var currentPage = 1
+
+    override fun executeIntent(intent: ListStore.Intent) {
+        when(intent) {
+            is ListStore.Intent.LoadNextPage -> {
+                if (!state().isLastPage && !state().isLoading) {
+                    loadPage(currentPage + 1)
+                }
+            }
+            // ...
+        }
+    }
+}
+\end{minted}
+\caption{Обработка пагинации в ListStore}
+\label{lst:list_store_pagination}
+\end{listing}
+
+\subsection{Обработка ошибок и интеграция с SwiftUI}
+
+В случае ошибки при выполнении сетевого запроса \texttt{Store} перехватывает исключение и сохраняет сообщение об ошибке в своем состоянии, как показано в листинге \ref{lst:ktor_error_handling}.
+
+\begin{listing}[H]
+\begin{minted}[frame=single,framesep=2mm,baselinestretch=1.2,fontsize=\small,linenos,breaklines]{kotlin}
+// shared/presentation/list/ListStore.kt
+private fun loadPage(page: Int) {
+    scope.launch(SupervisorJob()) {
+        dispatch(Msg.Loading(true))
+        peopleRepository.getPeople(page)
+            .onSuccess {
+                // ...
+            }
+            .onFailure {
+                dispatch(Msg.Error(it.message ?: "Unknown Error"))
+            }
+    }
+}
+\end{minted}
+\caption{Обработка ошибок сетевого запроса}
+\label{lst:ktor_error_handling}
+\end{listing}
+
+Состояние из \texttt{Store} (включая ошибку) передается в \texttt{Component}, а затем в UI-слой iOS через обертку \texttt{ObservableValue}. SwiftUI-представление подписывается на изменения этого объекта и декларативно отображает либо данные, либо индикатор загрузки, либо сообщение об ошибке с кнопкой для повторной попытки (листинг \ref{lst:swift_error_handling}). Примеры состояний представлены на рисунках \ref{fig:list_screen}, \ref{fig:details_screen}, \ref{fig:loading_screen}, \ref{fig:error_screen}.
+
+\begin{listing}[H]
+\begin{minted}[frame=single,framesep=2mm,baselinestretch=1.2,fontsize=\small,linenos,breaklines]{swift}
+// iosApp/ListView.swift
+ZStack {
+    if let error = model.error, !model.isLoading {
+        VStack(spacing: 16) {
+            Text(error)
+                .foregroundColor(.red)
+            Button("Reload", action: component.onReloadClicked)
+        }
+    } else {
+        // ... отображение списка
+    }
+
+    if model.items.isEmpty, model.isLoading {
+        ProgressView()
+    }
+}
+\end{minted}
+\caption{Отображение состояния ошибки в SwiftUI}
+\label{lst:swift_error_handling}
+\end{listing}
+
+Этот подход позволяет полностью инкапсулировать логику загрузки данных и обработки ошибок в общем \texttt{shared}-модуле, оставляя для iOS-приложения только задачу отображения готового состояния.
+
+\section{Анализ и выводы}
+
+На основе практической реализации и теоретического обзора был проведен анализ выбранного архитектурного подхода — связки MVIKotlin и Decompose — в контексте iOS-ориентированного проекта на Kotlin Multiplatform.
+
+\subsection{Сильные стороны}
+
+Выбранный стек продемонстрировал ряд значительных преимуществ, ключевых для мультиплатформенной разработки:
+
+\begin{itemize}
+    \item Максимальное переиспользование кода. Вся бизнес-логика, логика представления (управление состоянием) и даже навигация были вынесены в общий модуль \texttt{shared}. Это сокращает дублирование кода и упрощает синхронизацию версий приложения для разных платформ.
+    \item Масштабируемость. Компонентная модель Decompose позволяет легко добавлять новые экраны и потоки, изолируя их логику. Такой подход предотвращает разрастание классов и смешивание ответственности, в отличие от потенциальной проблемы «Massive ViewModel» в классическом MVVM.
+    \item Нативная производительность. Поскольку UI-слой для каждой платформы остается полностью нативным (SwiftUI для iOS), приложение сохраняет высокую производительность и отзывчивость, свойственную нативным решениям. Общая логика компилируется в нативный код, не создавая дополнительных издержек.
+    \item Платформонезависимая отладка. Бизнес-логику и логику представления можно разрабатывать, тестировать и отлаживать в общем модуле, используя, например, desktop-запуск. Это позволяет вести основную часть разработки, не имея под рукой iOS-устройства или MacBook, что значительно ускоряет и упрощает процесс.
+    \item Предсказуемость и тестируемость. Паттерн MVI обеспечивает строгий однонаправленный поток данных, что делает поведение приложения предсказуемым, а отладку — прозрачной. Логика обновления состояния инкапсулирована в чистых функциях-редьюсерах, которые легко покрываются юнит-тестами.
+\end{itemize}
+
+\subsection{Слабые стороны}
+
+Несмотря на весомые преимущества, у подхода есть и недостатки:
+
+\begin{itemize}
+    \item Высокий порог входа. Для эффективного использования стека MVIKotlin + Decompose разработчикам, особенно привыкшим к классическому MVVM, требуется время на освоение новых концепций и библиотек.
+    \item Увеличенный объем шаблонного кода. Реализация каждого экрана требует описания \texttt{State}, \texttt{Intent} и \texttt{Store}, что для простых случаев может показаться избыточным по сравнению с лаконичностью MVVM.
+    \item Интеграционный слой. Для связи общего кода с нативным UI (SwiftUI) требуется создание дополнительного слоя-адаптера, что добавляет сложности, хотя и решается универсальными обертками.
+\end{itemize}
+
+\section{Заключение}
+
+Выбранный архитектурный стек MVIKotlin + Decompose является мощным и стратегически верным решением для средних и крупных KMP-проектов, где важны долгосрочная поддержка, масштабируемость, максимальное переиспользование кода и строгая архитектура. Он идеально подходит для команд, готовых инвестировать время в изучение подхода, чтобы получить предсказуемую и легко тестируемую кодовую базу.
+
+Для небольших проектов или прототипов, где скорость разработки является ключевым фактором, а команда не знакома с MVI, более прагматичным выбором может стать адаптация MVVM. Однако в таком случае вопросы навигации и межэкранного взаимодействия придется либо решать отдельно для каждой платформы, что снизит объем переиспользуемого кода, либо написать собственное решение \texttt{ViewModel} поверх Decompose, не используя MVIKotlin, что потребует от разработки изучения данного фреймворка.
+
 
 \end{document}
