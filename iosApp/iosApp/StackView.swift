@@ -28,10 +28,6 @@ struct StackView<C: AnyObject, T: AnyObject, V: View>: View {
             VStack {
                 self.content(activeChild.instance)
                     .id(String(describing: activeChild.configuration))
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .trailing),
-                        removal: .move(edge: .leading))
-                    )
             }
             .navigationBarTitle(self.getTitle(activeChild.instance), displayMode: .inline)
             .navigationBarItems(

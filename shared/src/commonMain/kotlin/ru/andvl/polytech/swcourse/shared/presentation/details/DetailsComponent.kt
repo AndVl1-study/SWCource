@@ -15,6 +15,7 @@ interface DetailsComponent : BackHandlerOwner {
     val model: Value<Model>
 
     fun onBackClicked()
+    fun onReloadClicked()
 
     data class Model(
         val person: Person? = null,
@@ -51,5 +52,9 @@ class DetailsComponentImpl(
 
     override fun onBackClicked() {
         onFinished()
+    }
+
+    override fun onReloadClicked() {
+        store.accept(DetailsStore.Intent.Reload)
     }
 }

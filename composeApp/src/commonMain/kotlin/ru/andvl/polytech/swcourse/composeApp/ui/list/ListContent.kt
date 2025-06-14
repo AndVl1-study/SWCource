@@ -16,6 +16,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import ru.andvl.polytech.swcourse.shared.data.model.Person
@@ -26,23 +27,33 @@ fun ListContent(component: ListComponent) {
     val model by component.model.subscribeAsState()
     val listState = rememberLazyListState()
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp)
-        ) {
-            items(model.items) { person ->
-                PersonCard(
-                    person = person,
-                    onPersonClick = { component.onPersonClicked(person) }
+    Box(modifier = Modifier.fillMaxSize().safeContentPadding()) {
+        if (model.error != null) {
+            Box(Modifier.fillMaxSize()) {
+                Text(
+                    text = model.error ?: "Error",
+                    color = Color.Red,
+                    modifier = Modifier.align(Alignment.Center)
                 )
-                Spacer(modifier = Modifier.height(16.dp))
             }
-        }
+        } else {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp)
+            ) {
+                items(model.items) { person ->
+                    PersonCard(
+                        person = person,
+                        onPersonClick = { component.onPersonClicked(person) }
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
 
-        if (model.isLoading) {
-            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            if (model.isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
         }
     }
 

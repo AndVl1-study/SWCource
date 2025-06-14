@@ -18,10 +18,12 @@ interface ListComponent {
 
     fun onPersonClicked(person: Person)
     fun onLoadNextPageClicked()
+    fun onReloadClicked()
 
     data class Model(
         val items: List<Person>,
-        val isLoading: Boolean
+        val isLoading: Boolean,
+        val error: String?
     )
 }
 
@@ -41,7 +43,8 @@ class ListComponentImpl(
     override val model: Value<ListComponent.Model> = store.stateFlow(lifecycle).asValue(lifecycle).map {
         ListComponent.Model(
             items = it.items,
-            isLoading = it.isLoading
+            isLoading = it.isLoading,
+            error = it.error
         )
     }
 
@@ -51,5 +54,9 @@ class ListComponentImpl(
 
     override fun onLoadNextPageClicked() {
         store.accept(ListStore.Intent.LoadNextPage)
+    }
+
+    override fun onReloadClicked() {
+        store.accept(ListStore.Intent.Reload)
     }
 }

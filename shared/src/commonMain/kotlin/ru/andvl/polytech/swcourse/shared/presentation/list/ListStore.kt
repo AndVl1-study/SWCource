@@ -5,6 +5,7 @@ import com.arkivanov.mvikotlin.core.store.Store
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineBootstrapper
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import ru.andvl.polytech.swcourse.shared.data.model.Person
 import ru.andvl.polytech.swcourse.shared.domain.repository.PeopleRepository
@@ -13,6 +14,7 @@ interface ListStore : Store<ListStore.Intent, ListStore.State, Nothing> {
 
     sealed interface Intent {
         data object LoadNextPage : Intent
+        data object Reload : Intent
     }
 
     data class State(
@@ -41,7 +43,7 @@ class ListStoreFactory(
     }
 
     private sealed interface Msg {
-        data class PageLoaded(val items: List<Person>, val isLastPage: Boolean) : Msg
+        data class PageLoaded(val items: List<Person>, val isLastPage: Boolean, val isReload: Boolean) : Msg
         data class Loading(val isLoading: Boolean) : Msg
         data class Error(val error: String) : Msg
     }
@@ -68,21 +70,25 @@ class ListStoreFactory(
                         loadPage(currentPage + 1)
                     }
                 }
+                is ListStore.Intent.Reload -> {
+                    if (!state().isLoading) {
+                        loadPage(1)
+                    }
+                }
             }
         }
 
         private fun loadPage(page: Int) {
-            scope.launch {
+            scope.launch(SupervisorJob()) {
                 dispatch(Msg.Loading(true))
                 peopleRepository.getPeople(page)
                     .onSuccess {
                         currentPage = page
-                        dispatch(Msg.PageLoaded(it.results, it.next == null))
+                        dispatch(Msg.PageLoaded(it.results, it.next == null, page == 1))
                     }
                     .onFailure {
                         dispatch(Msg.Error(it.message ?: "Unknown Error"))
                     }
-                dispatch(Msg.Loading(false))
             }
         }
     }
@@ -93,11 +99,11 @@ class ListStoreFactory(
                 is Msg.Loading -> copy(isLoading = msg.isLoading, error = null)
                 is Msg.Error -> copy(error = msg.error, isLoading = false)
                 is Msg.PageLoaded -> copy(
-                    items = items + msg.items,
+                    items = if (msg.isReload) msg.items else items + msg.items,
                     isLastPage = msg.isLastPage,
                     isLoading = false,
                     error = null
                 )
             }
     }
-} 
+}

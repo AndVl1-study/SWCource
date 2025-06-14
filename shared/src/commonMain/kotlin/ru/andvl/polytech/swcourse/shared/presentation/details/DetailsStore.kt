@@ -9,7 +9,11 @@ import kotlinx.coroutines.launch
 import ru.andvl.polytech.swcourse.shared.data.model.Person
 import ru.andvl.polytech.swcourse.shared.domain.repository.PeopleRepository
 
-interface DetailsStore : Store<Nothing, DetailsStore.State, Nothing> {
+interface DetailsStore : Store<DetailsStore.Intent, DetailsStore.State, Nothing> {
+
+    sealed interface Intent {
+        data object Reload : Intent
+    }
 
     data class State(
         val person: Person? = null,
@@ -24,7 +28,7 @@ class DetailsStoreFactory(
     private val personUrl: String
 ) {
     fun create(): DetailsStore =
-        object : DetailsStore, Store<Nothing, DetailsStore.State, Nothing> by storeFactory.create(
+        object : DetailsStore, Store<DetailsStore.Intent, DetailsStore.State, Nothing> by storeFactory.create(
             name = "DetailsStore",
             initialState = DetailsStore.State(),
             bootstrapper = BootstrapperImpl(),
@@ -48,14 +52,22 @@ class DetailsStoreFactory(
         }
     }
 
-    private inner class ExecutorImpl : CoroutineExecutor<Nothing, Action, DetailsStore.State, Msg, Nothing>() {
+    private inner class ExecutorImpl : CoroutineExecutor<DetailsStore.Intent, Action, DetailsStore.State, Msg, Nothing>() {
         override fun executeAction(action: Action) {
             when (action) {
                 is Action.LoadDetails -> loadDetails()
             }
         }
 
+        override fun executeIntent(intent: DetailsStore.Intent) {
+            when (intent) {
+                is DetailsStore.Intent.Reload -> loadDetails()
+            }
+        }
+
         private fun loadDetails() {
+            if (state().isLoading) return
+
             scope.launch {
                 dispatch(Msg.Loading(true))
                 val id = personUrl.trimEnd('/').substringAfterLast('/').toInt()
@@ -70,7 +82,7 @@ class DetailsStoreFactory(
     private object ReducerImpl : Reducer<DetailsStore.State, Msg> {
         override fun DetailsStore.State.reduce(msg: Msg): DetailsStore.State =
             when (msg) {
-                is Msg.Loading -> copy(isLoading = msg.isLoading)
+                is Msg.Loading -> copy(isLoading = msg.isLoading, error = null)
                 is Msg.Error -> copy(error = msg.error, isLoading = false)
                 is Msg.DetailsLoaded -> copy(person = msg.person, isLoading = false)
             }
